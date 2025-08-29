@@ -1,0 +1,77 @@
+
+## 📄 DETAILS.md
+```markdown:DETAILS.md
+# Detalles de Diseño del Sistema de Inventario
+
+## 🎯 Decisiones de Diseño Clave
+
+### 1. Arquitectura en Capas
+**Decisión**: Separación clara entre backend (API) y frontend (React)
+**Justificación**: 
+- Mejor mantenibilidad y escalabilidad
+- Equipos pueden trabajar de forma independiente
+- Fácil reemplazo de cualquiera de las capas
+
+### 2. Base de Datos - SQL Server
+**Decisión**: Usar SQL Server con Entity Framework Core
+**Justificación**:
+- Soporte robusto para transacciones
+- Madurez y estabilidad
+- Integración natural con el ecosistema .NET
+
+### 3. Modelo de Datos
+**Decisión**: Tabla única para entradas/salidas con flag `IsOutput`
+**Ventajas**:
+- Historial completo de movimientos
+- Fácil auditoría y trazabilidad
+- Implementación simple de FIFO
+
+### 4. Principio FIFO
+**Implementación**: Las salidas se registran contra las entradas más antiguas
+**Beneficios**:
+- Gestión adecuada de productos perecederos
+- Minimiza pérdidas por caducidad
+- Cumple con normativas de industria alimentaria
+
+### 5. Validaciones en Backend
+**Decisión**: Validaciones tanto en cliente como servidor
+**Razón**:
+- Seguridad: el cliente puede ser bypassado
+- Consistencia: datos válidos en la base de datos
+- Experiencia: feedback inmediato al usuario
+
+## ⚡ Desafíos Técnicos Resueltos
+
+### 1. Ciclos de Referencia JSON
+**Problema**: Serialización circular entre Product ↔ InventoryEntries
+**Solución**:
+- DTOs específicos para respuestas API
+- Configuración `ReferenceHandler.IgnoreCycles`
+- Proyección explícita en controladores
+
+### 2. Gestión de Caducidades
+**Implementación**: Cálculo en tiempo real del estado
+**Lógica**:
+- Vigente: > 3 días para caducar
+- Por vencer: ≤ 3 días para caducar
+- Vencido: fecha pasada
+
+### 3. Control de Stock
+**Mecanismo**: Validación de existencias antes de salidas
+**Ventaja**: Evita stock negativo y operaciones inválidas
+
+## 🚀 Sugerencias de Escalabilidad
+
+### 1. Implementar Caching
+- **Redis** para cache de productos y estados
+- **React Query** en frontend para cache local
+- **Reducir** carga en base de datos para consultas frecuentes
+
+### 2. Mejorar Performance de Consultas
+```csharp
+// Ejemplo: Índices para búsquedas por fecha
+modelBuilder.Entity<InventoryEntry>()
+    .HasIndex(e => e.ExpirationDate);
+
+modelBuilder.Entity<InventoryEntry>()
+    .HasIndex(e => new { e.IsOutput, e.ExpirationDate });
